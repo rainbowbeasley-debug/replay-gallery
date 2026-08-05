@@ -1,6 +1,6 @@
 "use strict";
 
-const { cert, initializeApp } = require("firebase-admin/app");
+const { cert, deleteApp, initializeApp } = require("firebase-admin/app");
 const { getDatabase } = require("firebase-admin/database");
 
 const {
@@ -88,6 +88,23 @@ async function moderateVoteSet(db, levelID, macroID, votes) {
   return { status: "removed", counts };
 }
 
+async function withTimeout(promise, milliseconds, label) {
+  let timer;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`${label} timed out after ${milliseconds / 1000} seconds.`));
+        }, milliseconds);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function run() {
   const databaseURL = process.env.FIREBASE_DATABASE_URL;
   if (!databaseURL) {
@@ -98,54 +115,82 @@ async function run() {
     process.env.FIREBASE_SERVICE_ACCOUNT,
   );
 
-  initializeApp({
-    credential: cert(serviceAccount),
-    databaseURL,
-  });
+  let app;
 
-  const db = getDatabase();
-  const snapshot = await db.ref("/macro-votes").get();
-  const allVotes = snapshot.val();
+  try {
+    console.log("Initializing Firebase Admin...");
+    app = initializeApp({
+      credential: cert(serviceAccount),
+      databaseURL,
+    });
 
-  if (!allVotes || typeof allVotes !== "object") {
-    console.log("No replay votes to process.");
-    return;
-  }
+    const db = getDatabase(app);
+    console.log("Reading community vote sets...");
 
-  let checked = 0;
-  let removed = 0;
-  let staleCleaned = 0;
+    const snapshot = await withTimeout(
+      db.ref("/macro-votes").get(),
+      60_000,
+      "Reading /macro-votes",
+    );
+    const allVotes = snapshot.val();
 
-  for (const [levelID, macroGroups] of Object.entries(allVotes)) {
-    if (!/^[0-9]+$/.test(levelID) || !macroGroups || typeof macroGroups !== "object") {
-      continue;
+    if (!allVotes || typeof allVotes !== "object") {
+      console.log("No replay votes to process.");
+      return;
     }
 
-    for (const [macroID, votes] of Object.entries(macroGroups)) {
-      if (!/^[0-9a-f]{16}$/.test(macroID)) {
+    let checked = 0;
+    let removed = 0;
+    let staleCleaned = 0;
+
+    for (const [levelID, macroGroups] of Object.entries(allVotes)) {
+      if (!/^[0-9]+$/.test(levelID) || !macroGroups || typeof macroGroups !== "object") {
         continue;
       }
 
-      checked += 1;
-      const result = await moderateVoteSet(db, levelID, macroID, votes);
+      for (const [macroID, votes] of Object.entries(macroGroups)) {
+        if (!/^[0-9a-f]{16}$/.test(macroID)) {
+          continue;
+        }
 
-      if (result.status === "removed") {
-        removed += 1;
-        console.log(
-          `Removed level ${levelID} replay ${macroID}: ` +
-            `${result.counts.remove} Remove, ${result.counts.keep} Keep.`,
+        checked += 1;
+        console.log(`Checking vote set ${levelID}/${macroID}...`);
+
+        const result = await withTimeout(
+          moderateVoteSet(db, levelID, macroID, votes),
+          60_000,
+          `Processing vote set ${levelID}/${macroID}`,
         );
-      } else if (result.status === "stale-cleaned") {
-        staleCleaned += 1;
-        console.log(`Cleaned stale vote set ${levelID}/${macroID}.`);
+
+        if (result.status === "removed") {
+          removed += 1;
+          console.log(
+            `Removed level ${levelID} replay ${macroID}: ` +
+              `${result.counts.remove} Remove, ${result.counts.keep} Keep.`,
+          );
+        } else if (result.status === "stale-cleaned") {
+          staleCleaned += 1;
+          console.log(`Cleaned stale vote set ${levelID}/${macroID}.`);
+        } else {
+          console.log(
+            `Kept ${levelID}/${macroID}: ${result.counts.remove} Remove, ` +
+              `${result.counts.keep} Keep (${result.status}).`,
+          );
+        }
       }
     }
-  }
 
-  console.log(
-    `Moderation complete: checked ${checked}, removed ${removed}, ` +
-      `cleaned ${staleCleaned} stale vote set(s).`,
-  );
+    console.log(
+      `Moderation complete: checked ${checked}, removed ${removed}, ` +
+        `cleaned ${staleCleaned} stale vote set(s).`,
+    );
+  } finally {
+    if (app) {
+      console.log("Closing Firebase connection...");
+      await deleteApp(app);
+      console.log("Firebase connection closed.");
+    }
+  }
 }
 
 if (require.main === module) {
