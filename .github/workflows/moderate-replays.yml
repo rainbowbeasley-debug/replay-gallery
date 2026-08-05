@@ -21,49 +21,22 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Show checked-out commit
-        run: |
-          git rev-parse HEAD
-          git log -1 --oneline
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: 20
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: moderation/requirements.txt
 
       - name: Install moderator dependencies
-        run: npm install --no-audit --no-fund
-        working-directory: moderation
+        run: python -m pip install --disable-pip-version-check -r moderation/requirements.txt
 
       - name: Test moderation logic
-        run: npm test
         working-directory: moderation
-
-      - name: Verify patched moderator file
-        run: |
-          grep -F 'Moderator process finished.' moderation/index.js
-          grep -F 'process.exit(0)' moderation/index.js
+        run: python -m unittest -v test_moderate.py
 
       - name: Process community votes
-        shell: bash
-        working-directory: moderation
         env:
           FIREBASE_DATABASE_URL: https://showcase-reborn-macros-default-rtdb.firebaseio.com
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: |
-          set +e
-          timeout --signal=TERM --kill-after=5s 75s npm run moderate 2>&1 | tee moderation-output.log
-          status=${PIPESTATUS[0]}
-
-          if grep -q 'Moderator process finished.' moderation-output.log; then
-            echo 'Moderator exited normally.'
-            exit 0
-          fi
-
-          if grep -q 'Moderation complete:' moderation-output.log; then
-            echo 'Moderation finished its work but Node left an open handle; treating the completed run as successful.'
-            exit 0
-          fi
-
-          echo "Moderator did not complete successfully (exit status: ${status})."
-          exit "${status:-1}"
+        run: python moderation/moderate.py
