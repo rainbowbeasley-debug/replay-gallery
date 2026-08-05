@@ -1,0 +1,27 @@
+REPLAY GALLERY RENAME NOTES
+===========================
+
+This is the renamed source project.
+
+Changed:
+- Folder/project name: Replay Gallery
+- Mod name: Replay Gallery
+- Mod ID: nonothenonokid.replay-gallery
+- Feedback button: Replay Gallery Feedback
+- Description, About, README, changelog, status text, alerts, logs, node IDs, and C++ class names
+- New replay files use REPLAY_GALLERY_MACRO_V2
+- Old REPLAY_GALLERY_MACRO_V1 and SHOWCASE_REBORN_MACRO_V1 replay data is still accepted
+
+Intentionally unchanged:
+- The Firebase project URL still contains showcase-reborn because that is the existing backend address. Changing the text of the URL would break online replay sharing and feedback.
+
+Install/build:
+1. Extract the Replay Gallery folder into C:\GDMods
+2. Open Command Prompt
+3. Run:
+   cd /d "C:\GDMods\Replay Gallery"
+   geode build --ninja
+
+Because the mod ID changed, uninstall or disable the old nonothenonokid.showcase-reborn build before testing this one.
+
+Replay format v2 stores failed best runs and relative simulation-step timing for speedhack-friendly playback.

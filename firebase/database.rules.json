@@ -1,0 +1,57 @@
+{
+  "rules": {
+    "macros": {
+      ".read": true,
+      "$macroID": {
+        ".write": "!data.exists() && newData.exists()",
+        ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 524288"
+      }
+    },
+    "reports": {
+      ".read": false,
+      "$reportID": {
+        ".write": "!data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['type', 'message', 'username', 'levelID', 'levelVersion', 'modVersion', 'createdAt'])",
+        "type": {
+          ".validate": "newData.isString() && (newData.val() === 'bug' || newData.val() === 'suggestion')"
+        },
+        "message": {
+          ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 500"
+        },
+        "username": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 32"
+        },
+        "levelID": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "levelVersion": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "modVersion": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "macro-votes": {
+      "$levelID": {
+        "$macroID": {
+          ".read": "$levelID.matches(/^[0-9]+$/) && $macroID.matches(/^[0-9a-f]{16}$/)",
+          "$deviceID": {
+            ".write": "$levelID.matches(/^[0-9]+$/) && $macroID.matches(/^[0-9a-f]{16}$/) && $deviceID.matches(/^[0-9a-f]{32}$/) && newData.exists()",
+            ".validate": "newData.isString() && (newData.val() === 'keep' || newData.val() === 'remove')"
+          }
+        }
+      }
+    },
+    "moderation-log": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

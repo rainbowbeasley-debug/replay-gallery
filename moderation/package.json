@@ -1,0 +1,16 @@
+{
+  "name": "replay-gallery-vote-moderator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "moderate": "node index.js",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "firebase-admin": "13.10.0"
+  }
+}

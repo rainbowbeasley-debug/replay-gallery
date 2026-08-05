@@ -1,0 +1,42 @@
+name: Moderate replay votes
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "2-59/5 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: replay-gallery-moderation
+  cancel-in-progress: false
+
+jobs:
+  moderate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install moderator dependencies
+        run: npm install --no-audit --no-fund
+        working-directory: moderation
+
+      - name: Test moderation logic
+        run: npm test
+        working-directory: moderation
+
+      - name: Process community votes
+        run: npm run moderate
+        working-directory: moderation
+        env:
+          FIREBASE_DATABASE_URL: https://showcase-reborn-macros-default-rtdb.firebaseio.com
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

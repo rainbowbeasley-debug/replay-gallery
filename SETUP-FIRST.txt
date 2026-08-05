@@ -1,0 +1,24 @@
+REPLAY GALLERY v1.2.5 - REQUIRED SETUP
+
+1. Build the mod:
+   cd /d "C:\GDMods\Replay Gallery"
+   geode build --ninja
+
+2. Deploy only the protected Realtime Database rules:
+   firebase deploy --only database
+
+3. Put this source project in your GitHub repository.
+
+4. Follow GITHUB-MODERATION-SETUP.md exactly. The GitHub Action is what
+   deletes a public replay after at least 5 votes and a strict Remove majority.
+
+5. Do NOT upload a Firebase service-account JSON file to GitHub or put it in
+   the mod. Paste it only into the GitHub repository secret named:
+   FIREBASE_SERVICE_ACCOUNT
+
+6. Test by casting 3 Remove and 2 Keep votes, then manually run the
+   "Moderate replay votes" workflow from the GitHub Actions tab.
+
+Deletion is normally checked every 5 minutes. Anonymous device-ID voting can
+still be manipulated by a determined person; this setup protects macros from
+direct client overwrite/deletion but does not provide one-person-one-vote.
