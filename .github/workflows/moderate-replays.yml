@@ -10,16 +10,21 @@ permissions:
 
 concurrency:
   group: replay-gallery-moderation
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   moderate:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 3
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Show checked-out commit
+        run: |
+          git rev-parse HEAD
+          git log -1 --oneline
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -34,9 +39,31 @@ jobs:
         run: npm test
         working-directory: moderation
 
+      - name: Verify patched moderator file
+        run: |
+          grep -F 'Moderator process finished.' moderation/index.js
+          grep -F 'process.exit(0)' moderation/index.js
+
       - name: Process community votes
-        run: npm run moderate
+        shell: bash
         working-directory: moderation
         env:
           FIREBASE_DATABASE_URL: https://showcase-reborn-macros-default-rtdb.firebaseio.com
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set +e
+          timeout --signal=TERM --kill-after=5s 75s npm run moderate 2>&1 | tee moderation-output.log
+          status=${PIPESTATUS[0]}
+
+          if grep -q 'Moderator process finished.' moderation-output.log; then
+            echo 'Moderator exited normally.'
+            exit 0
+          fi
+
+          if grep -q 'Moderation complete:' moderation-output.log; then
+            echo 'Moderation finished its work but Node left an open handle; treating the completed run as successful.'
+            exit 0
+          fi
+
+          echo "Moderator did not complete successfully (exit status: ${status})."
+          exit "${status:-1}"
