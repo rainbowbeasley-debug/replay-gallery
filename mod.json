@@ -8,10 +8,23 @@
     },
     "id": "nonothenonokid.replay-gallery",
     "name": "Replay Gallery",
-    "version": "v1.2.5",
+    "version": "v1.2.6",
     "developer": "NoNoTheNoNoKid",
-    "description": "Records clean runs, shares a protected public replay, and plays it back in Safe Mode.",
+    "description": "Records clean runs locally, with optional online sharing, voting, and Safe Mode playback.",
+    "tags": [
+        "gameplay",
+        "utility",
+        "offline"
+    ],
     "dependencies": {
         "geode.node-ids": ">=v1.23.3"
+    },
+    "settings": {
+        "online-features": {
+            "type": "bool",
+            "name": "Online Features",
+            "description": "Allow Replay Gallery to connect to Firebase to download and upload replay input data, submit anonymous Keep/Remove votes using a random installation ID, and send feedback containing your Geometry Dash username and current level ID/version. Turn this off to keep recordings local and stop network requests.",
+            "default": false
+        }
     }
 }
