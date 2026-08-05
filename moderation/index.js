@@ -187,16 +187,27 @@ async function run() {
   } finally {
     if (app) {
       console.log("Closing Firebase connection...");
-      await deleteApp(app);
-      console.log("Firebase connection closed.");
+      try {
+        await withTimeout(deleteApp(app), 10_000, "Closing Firebase Admin");
+        console.log("Firebase connection closed.");
+      } catch (error) {
+        console.warn(
+          `Firebase cleanup warning: ${error instanceof Error ? error.message : error}`,
+        );
+      }
     }
   }
 }
 
 if (require.main === module) {
-  run().catch((error) => {
-    console.error(error instanceof Error ? error.stack : error);
-    process.exitCode = 1;
-  });
+  run()
+    .then(() => {
+      console.log("Moderator process finished.");
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error(error instanceof Error ? error.stack : error);
+      process.exit(1);
+    });
 }
 
